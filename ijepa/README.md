@@ -108,6 +108,65 @@ Empirically, I-JEPA learns strong off-the-shelf semantic representations without
 **Config files:**
 Note that all experiment parameters are specified in config files (as opposed to command-line-arguments). See the [configs/](configs/) directory for example config files.
 
+## Getting pretrained weights and running inference
+
+### Downloading weights
+
+Pretrained checkpoints are hosted on Meta’s CDN. Download the one that matches the config you want:
+
+| Config | Checkpoint URL |
+|--------|----------------|
+| ViT-H/14, 224, IN1K 300ep | [IN1K-vit.h.14-300e.pth.tar](https://dl.fbaipublicfiles.com/ijepa/IN1K-vit.h.14-300e.pth.tar) |
+| ViT-H/16, 448, IN1K 300ep | [IN1K-vit.h.16-448px-300e.pth.tar](https://dl.fbaipublicfiles.com/ijepa/IN1K-vit.h.16-448px-300e.pth.tar) |
+| ViT-H/14, 224, IN22K | [IN22K-vit.h.14-900e.pth.tar](https://dl.fbaipublicfiles.com/ijepa/IN22K-vit.h.14-900e.pth.tar) |
+| ViT-g/16, 224, IN22K | [IN22K-vit.g.16-600e.pth.tar](https://dl.fbaipublicfiles.com/ijepa/IN22K-vit.g.16-600e.pth.tar) |
+
+Example (ViT-H/14, 224):
+
+```bash
+cd ijepa
+wget https://dl.fbaipublicfiles.com/ijepa/IN1K-vit.h.14-300e.pth.tar -O checkpoints/IN1K-vit.h.14-300e.pth.tar
+```
+
+Use the matching YAML under `configs/` for `model_name`, `patch_size`, `crop_size`, and predictor settings (see table in [Pretrained models](#pretrained-models)).
+
+### Running inference
+
+Use the provided script to load a checkpoint and extract encoder features (e.g. for linear eval or downstream tasks):
+
+```bash
+cd ijepa
+python run_inference.py \
+  --checkpoint path/to/IN1K-vit.h.14-300e.pth.tar \
+  --config configs/in1k_vith14_ep300.yaml \
+  --image path/to/image.jpg \
+  --output features.pt
+```
+
+- **`--checkpoint`**: Path to the `.pth.tar` file.
+- **`--config`**: Config YAML that matches the checkpoint (defines `model_name`, `patch_size`, `crop_size`, etc.).
+- **`--image`**: Input image path (or a directory of images).
+- **`--output`**: Output path for extracted features (default: `features.pt`).
+
+The script loads only the **encoder** and runs a forward pass with no masking, producing a feature tensor of shape `(1, num_patches, embed_dim)` per image (or `(N, num_patches, embed_dim)` for a batch). You can pool (e.g. mean over patches) for a single vector per image.
+
+### Minimum hardware for inference
+
+Inference runs **encoder-only** (no predictor or optimizer in memory). Approximate minimums:
+
+| Checkpoint | Encoder | Resolution | ~Params | Recommended GPU VRAM (batch 1) | CPU |
+|------------|--------|------------|--------|--------------------------------|-----|
+| IN1K-vit.h.14-300e | ViT-H/14 | 224 | ~632M | **≥ 6 GB** | ✓ (slower) |
+| IN1K-vit.h.16-448px-300e | ViT-H/16 | 448 | ~632M | **≥ 10 GB** | ✓ (slower) |
+| IN22K-vit.h.14-900e | ViT-H/14 | 224 | ~632M | **≥ 6 GB** | ✓ |
+| IN22K-vit.g.16-600e | ViT-g/16 | 224 | ~1.1B | **≥ 8 GB** | ✓ (slower) |
+
+- **GPU:** Use a GPU with at least the VRAM above for batch size 1. For multiple images, use `--batch-size 1` (or a small value) to avoid OOM.
+- **CPU:** Run with `--device cpu`; no GPU required. Slower but works on any machine with enough RAM (~8–16 GB system RAM for the smaller checkpoints).
+- **Low VRAM:** Prefer the **ViT-H/14 @ 224** checkpoints and `--batch-size 1`.
+
+---
+
 ## Launching I-JEPA pretraining
 
 ### Single-GPU training
