@@ -208,3 +208,5 @@ __marimo__/
 
 checkpoints/*
 ijepa/checkpoints/*
+data_store/*
+outputs/*

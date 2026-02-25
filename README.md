@@ -33,52 +33,62 @@ RC-JEPA/
 └── docs/overview_idea.md
 ```
 
-## Quick start
+## Getting started
 
-### 1. Environment
+### 1. Create conda environment
+
+From the project root:
 
 ```bash
-conda create -n rcjepa python=3.10 -y && conda activate rcjepa
+cd /home/admin1/Desktop/RC-JEPA
+
+# Create environment with Python 3.10
+conda create -n rcjepa python=3.10 -y
+
+# Activate it (required before every run)
+conda activate rcjepa
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Phase 1 — Train the probabilistic predictor
+You only need to create the env once. Use `conda activate rcjepa` whenever you open a new terminal to run the scripts.
 
-The encoder is frozen; only the predictor receives gradients.
+### 2. Run the full pipeline (CIFAR-100)
 
-```bash
-python scripts/train_predictor.py \
-    --config configs/train_rc_jepa.yaml \
-    --data_dir /path/to/imagenet100/train
-```
-
-Track `metrics/latent_spearman` — it should exceed **0.80** for the conformal
-selector to work well. Adjust `--lambda_rank` / margin `gamma` if needed.
-
-### 3. Phase 2 — Calibrate the risk threshold
-
-Use a **strictly held-out** calibration split (≥ 20 % of validation).
+The config uses **CIFAR-100** by default. Data is downloaded automatically into `./data_store`. Run these three steps in order:
 
 ```bash
-python scripts/calibrate.py \
-    --ckpt_path outputs/best_predictor.pth \
-    --calib_dir /path/to/imagenet100/val_calib \
-    --target_alpha 0.1 \
-    --delta 0.1
+cd /home/admin1/Desktop/RC-JEPA
+conda activate rcjepa
+pip install -r requirements.txt
+
+# Phase 1 — Train the probabilistic predictor (encoder frozen)
+python3 scripts/train_predictor.py --config configs/train_rc_jepa.yaml --data_dir ./data_store
+
+# Phase 2 — Calibrate risk threshold on held-out data
+python3 scripts/calibrate.py \
+  --ckpt_path outputs/best_predictor.pth \
+  --calib_dir ./data_store \
+  --target_alpha 0.1 \
+  --save_threshold outputs/tau_alpha0.1.json
+
+# Phase 3 — Evaluate on clean data and save plots
+python3 scripts/evaluate_shift.py \
+  --ckpt_path outputs/best_predictor.pth \
+  --threshold_file outputs/tau_alpha0.1.json \
+  --test_clean ./data_store \
+  --output_dir results/plots
 ```
 
-### 4. Phase 3 — Evaluate on clean + shifted data
+- **Phase 1**: Checkpoints go to `outputs/`. Watch `latent_spearman` in the logs; aim for **> 0.80**.
+- **Phase 2**: Writes `outputs/tau_alpha0.1.json` (threshold for risk level α = 0.1).
+- **Phase 3**: Writes `results/plots/risk_coverage_curve.png` and `results/plots/safe_degradation.png`.
 
-```bash
-python scripts/evaluate_shift.py \
-    --ckpt_path outputs/best_predictor.pth \
-    --threshold_file outputs/thresholds/tau_alpha0.1.json \
-    --test_clean /path/to/imagenet100/val_test \
-    --test_corrupt /path/to/imagenet_c
-```
+### 3. Using ImageNet-100 or ImageNet-C
 
-Produces `risk_coverage_curve.png` and `safe_degradation.png` in the output
-directory.
+- **ImageNet-100**: Put train/val in e.g. `data_store/imagenet100/train` and `.../val`. Use a separate **calibration** split (e.g. 20% of val → `val_calib/`) and set `--calib_dir` and `--data_dir` accordingly.
+- **ImageNet-C**: Set `--test_corrupt /path/to/imagenet_c` in the evaluate script to test under distribution shift.
 
 ## Key idea (one paragraph)
 
