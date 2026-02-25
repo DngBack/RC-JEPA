@@ -1,0 +1,35 @@
+model:
+  encoder:
+    name: vit_small
+    img_size: 224
+    patch_size: 16
+    checkpoint_path: null
+  predictor:
+    predictor_dim: 192
+    num_heads: 6
+    depth: 4
+
+data:
+  dataset: cifar100
+  img_size: 224
+  num_workers: 8
+
+masking:
+  target_ratio: 0.6
+  num_blocks: 4
+  min_block_aspect: 0.75
+  max_block_aspect: 1.5
+
+calibration:
+  ckpt_path: outputs/best_predictor.pth
+  calib_dir: ./data_store
+  alphas: [0.05, 0.1, 0.2]
+  delta: 0.1
+  num_thresholds: 1000
+
+evaluation:
+  test_clean: ./data_store
+  test_corrupt: ./data_store/imagenet_c
+  threshold_dir: outputs/thresholds/
+  output_dir: results/plots/
+  corruption_severities: [1, 2, 3, 4, 5]

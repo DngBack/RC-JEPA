@@ -1,0 +1,39 @@
+model:
+  encoder:
+    name: vit_small        # vit_tiny | vit_small | vit_base | vit_large | vit_huge
+    img_size: 224
+    patch_size: 16
+    checkpoint_path: null   # path to pretrained I-JEPA / ViT checkpoint (null = random init)
+  predictor:
+    predictor_dim: 192
+    num_heads: 6
+    depth: 4
+
+data:
+  dataset: cifar100         # cifar100 (fast prototyping) | imagenet100 | imagenet
+  data_dir: ./data_store
+  img_size: 224
+  num_workers: 8
+
+masking:
+  target_ratio: 0.6
+  num_blocks: 4
+  min_block_aspect: 0.75
+  max_block_aspect: 1.5
+
+training:
+  batch_size: 128
+  epochs: 100
+  lr: 1.5e-4
+  weight_decay: 0.05
+  warmup_epochs: 10
+  lambda_rank: 0.5
+  gamma: 1.0               # margin for ranking loss
+  save_dir: outputs/
+  log_interval: 50
+  save_interval: 10
+
+wandb:
+  project: RC-JEPA
+  entity: null
+  enabled: false
